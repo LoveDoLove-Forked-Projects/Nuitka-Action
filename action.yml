@@ -214,6 +214,12 @@ inputs:
       walker, ccache, and even gcc on Windows. To disable, redirect input
       from nul device, e.g. "</dev/null" or "<NUL:". Default is to prompt.
     default: true
+  update-check:
+    description: |
+      Control checking for newer Nuitka releases. Use "never" to disable it,
+      "force" to bypass the cache once, "error" to make outdated versions abort,
+      "warning" (default) to warn, or "info" to merely inform. This can also be
+      controlled with the environment variable 'NUITKA_UPDATE_CHECK'.
   nowarn-mnemonic:
     description: |
       Disable warning for a given mnemonic. These are given to make sure you are aware of
@@ -266,7 +272,9 @@ inputs:
       Defaults to unused.
   file-description:
     description: |
-      Description of the file used in version information. Windows only at this time. Defaults to binary filename.
+      Description of the file used in version information. On Windows, it is mandatory and
+      defaults to the binary filename. On Linux app mode, it is used as the summary of the
+      AppStream metadata. Defaults to unused.
   copyright:
     description: |
       Copyright used in version information. Windows/macOS only at this time. Defaults to not present.
@@ -309,6 +317,8 @@ inputs:
   onefile-windows-splash-screen-image:
     description: |
       When compiling for Windows and onefile, show this while loading the application. Defaults to off.
+      Setting the environment variable 'NUITKA_SPLASH_SCREEN' to "0" or "off" hides the splash screen at
+      runtime, e.g. for automated tests.
   windows-uac-admin:
     description: |
       Request Windows User Control, to grant admin rights on execution. (Windows only). Defaults to off.
@@ -331,10 +341,6 @@ inputs:
   macos-app-icon:
     description: |
       Add icon for the application bundle to use. Can be given only one time. Defaults to Python icon if available.
-  macos-app-create-dmg:
-    description: |
-      When compiling for macOS, create a DMG file for the application bundle.
-      Defaults to off.
   macos-signed-app-name:
     description: |
       Name of the application to use for macOS signing. Follow "com.YourCompany.AppName"
@@ -369,6 +375,14 @@ inputs:
     description: |
       Product version to use in macOS bundle information. Defaults to "1.0" if
       not given.
+  macos-app-macos-min-version:
+    description: |
+      Minimum macOS version required by the application. Defaults to the
+      version detected from the Python binary used.
+  macos-app-category-type:
+    description: |
+      App Store category type for the application, e.g.
+      public.app-category.utilities.
   macos-app-protected-resource:
     description: |
       Request an entitlement for access to a macOS protected resources, e.g.
@@ -388,9 +402,24 @@ inputs:
       '--macos-sign-keyring-filename'. Default empty.
 
   ### Linux specific controls: ###
-  linux-icon:
+  linux-app-icon:
     description: |
-      Add executable icon for onefile binary to use. Can be given only one time. Defaults to Python icon if available.
+      Add executable icon for the Linux desktop file to use. Can be given
+      only one time. Defaults to Python icon if available. Note that the
+      desktop file references the icon by name only, it will not display
+      unless the icon file is also installed into the system icon paths,
+      e.g. '/usr/share/icons/hicolor/' or '~/.local/share/icons/'.
+  linux-app-console-mode:
+    description: |
+      Select console mode to use with the Linux desktop file. Default mode
+      is 'disable' and the 'Terminal' entry makes it launch without a
+      terminal. With 'force' a terminal is opened when launched from the
+      desktop environment. Default is 'disable'.
+  linux-app-license:
+    description: |
+      SPDX license expression of the application used in the AppStream
+      metainfo file created on Linux, e.g. 'Apache-2.0'. Defaults
+      to 'Proprietary'.
 
 
   ### Backend C compiler choices. ###
@@ -437,6 +466,17 @@ inputs:
       value, but you can override it, e.g. to disable it with "none"
       value. Refer to gcc documentation for "-fcf-protection" for the
       details.
+  target-arch:
+    description: |
+      What minimum CPU instruction set to compile for. This is NOT about
+      cross-compilation (which requires Python of that architecture). It
+      controls the baseline ISA level for the backend C compiler via
+      '-march'. When not given, gcc and clang use their default (already
+      portable), and zig defaults to the baseline ISA for the target
+      architecture (e.g. "x86_64" on x86_64, "armv8-a" on arm64) to
+      produce portable binaries. Set to an explicit value like
+      "x86-64-v3" to require a higher ISA level. Check compiler docs
+      for allowed values. If you choose wrong, build errors will occur.
 
   ### Debug features. ###
   debug:
@@ -447,6 +487,13 @@ inputs:
     description: |
       For fork bombs, debug what Nuitka does when it encounters a relaunch of itself.
       Defaults to off.
+  debug-address-sanitizer:
+    description: |
+      Compile and link with AddressSanitizer instrumentation, if the C compiler
+      supports it. Known to work with GCC and Clang. This implies keeping debug
+      information. Leak detection is disabled by default for the compiled program,
+      since Python and third party libraries intend to leak a lot, but it can be
+      enabled with "ASAN_OPTIONS=detect_leaks=1" if wanted. Defaults to off.
   no-debug-immortal-assumptions:
     description: |
       Disable check normally done with "--debug". With Python3.12+ do not check known
@@ -572,6 +619,24 @@ inputs:
       Enables debug outputs for the debugger plugin, so that it e.g. says
       why it rejects something.
 
+  ### Plugin options of 'codemeter' (categories: commercial, protection) ###
+  codemeter-path:
+    description: |
+      The location of the CodeMeter / AxProtector installation, by default it is
+      searched in common install paths and in PATH.
+  codemeter-command:
+    description: |
+      The CodeMeter protection tool executable name. By default AxProtectorCmd.exe
+      is searched.
+  codemeter-args:
+    description: |
+      Extra command-line arguments passed to the CodeMeter protection tool.
+      These may contain references to project configuration files, input and
+      output filenames, or other protection options.
+  codemeter-keep-unprotected:
+    description: |
+      Keep the unprotected version of the Nuitka compiled binary.
+
   ### Plugin options of 'data-hiding' (categories: commercial, protection) ###
   data-hiding-salt-value:
     description: |
@@ -613,14 +678,34 @@ inputs:
   encrypt-debug-init:
     description: |
       In case the encryption fails to install, do not abort, but run normally and trace error unencrypted.
-  encrypt-crypto-package:
+  obfuscate-line-numbers:
     description: |
-      These are two very similar packages that can both do the encryption, and
-      to avoid duplication in case one of your packages requires the other,
-      you get to select which one to use by the plugin code. By default
-      "pycryptodomex" is used and only legacy code uses that. However it
-      will fallback to "pycryptodome" if that's the only one installed,
-      and you can enforce Nuitka choice if both are for some reason.
+      Obfuscate source line numbers in the generated code. In 'original' mode, line
+      numbers are kept as-is. In 'removed' mode, all line numbers become constant
+      '1'. In 'encrypted' mode, line numbers are replaced with deterministic
+      encrypted values via a per-source-file shuffle,
+      and a reverse mapping is written to a '<result>.secrets' directory for use in
+      bug report analysis. Only generated code uses these values, compile time
+      errors and reports keep the original line numbers. Module code objects use
+      line number '1' in both modes since obfuscating them provides no protection.
+  private-import-patterns:
+    description: |
+      Shell pattern of module names to treat as private hard imports. Matching
+      modules are compiled as dynamic hard imports and hidden from sys.modules.
+      Can be given multiple times.
+
+  ### Plugin options of 'source-inclusion' (categories: feature, package-support) ###
+  source-inclusion-args:
+    description: |
+      Run the program being compiled during compilation with this shell-style
+      argument list while recording looked up source files. Repeat for every
+      additional probe run, e.g. '--source-inclusion-args="subcommand --help"'.
+  source-inclusion-timeout:
+    description: |
+      Timeout in seconds for each probe run. Defaults to no timeout, so a probe run that hangs is seen rather than silently cut short.
+  show-source-inclusion-trace:
+    description: |
+      Display the recorded source inclusion modules from the probe run.
 
   ### Plugin options of 'upx' (categories: integration) ###
   upx-binary:
@@ -655,6 +740,14 @@ inputs:
   tcl-library-dir:
     description: |
       The Tcl library dir. See comments for Tk library dir.
+
+  ### Plugin options of 'torch-hub' (categories: package-support) ###
+  torch-hub-model:
+    description: |
+      Specify a Torch Hub model to scan for hidden imports. Use the form
+      'REPO_OR_DIR=MODEL', e.g. 'ultralytics/yolov5=yolov5s'. The repository part
+      may also be a local directory containing a 'hubconf.py'. Repeat this option
+      for multiple models. [REQUIRED]
 
   ### Plugin options of 'pyside6' (same for 'pyside2', 'pyqt6', 'pyqt5' plugins) (categories: package-support, qt-binding) ###
   include-qt-plugins:
@@ -719,7 +812,7 @@ runs:
         sudo apt-get install -y ccache
     - name: Cache Nuitka cache directory
       if: ${{ !inputs.disable-cache }}
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
       with:
         path: ${{ env.NUITKA_CACHE_DIR }}
         key: nuitka-${{ inputs.caching-key }}-${{ runner.os }}-${{ runner.arch }}-python-${{ env.PYTHON_VERSION }}-nuitka-${{ github.sha }}
