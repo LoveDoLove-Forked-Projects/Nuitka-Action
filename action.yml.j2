@@ -56,6 +56,9 @@ inputs:
   user-package-configuration-file:
     description: "User provided YAML file with package configuration. You can include DLLs, remove bloat, add hidden dependencies. Check User Manual for a complete description of the format to use. Can be given multiple times. Defaults to empty."
 
+  ### Control the inclusion of DLL files in result. ###
+{{ get_group_options("DLL files") }}
+
   ### Environment control ###
 {{ get_group_options("Environment control") }}
 

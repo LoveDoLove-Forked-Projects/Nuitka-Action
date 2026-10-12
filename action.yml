@@ -189,6 +189,19 @@ inputs:
   user-package-configuration-file:
     description: "User provided YAML file with package configuration. You can include DLLs, remove bloat, add hidden dependencies. Check User Manual for a complete description of the format to use. Can be given multiple times. Defaults to empty."
 
+  ### Control the inclusion of DLL files in result. ###
+  noinclude-dlls:
+    description: |
+      Do not include DLL files matching the filename pattern given. This is against
+      the target filename, not source paths. So ignore a DLL 'someDLL' contained in
+      the package 'package_name' it should be matched as 'package_name/someDLL.*'.
+      Default empty.
+  include-windows-runtime-dlls:
+    description: |
+      Include the Windows C runtime DLLs in the distribution. For onefile, this also
+      enables static linking of the bootstrap binary. Defaults to 'auto', which
+      includes them if found.
+
   ### Environment control ###
   force-runtime-environment-variable:
     description: |
