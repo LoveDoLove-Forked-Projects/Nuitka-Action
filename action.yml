@@ -282,6 +282,48 @@ inputs:
     description: |
       Trademark used in version information. Windows/macOS only at this time. Defaults to not present.
 
+  ### Installer creation ###
+  macos-create-installer:
+    description: |
+      When compiling for macOS, create a DMG file for the application bundle.
+      Defaults to off.
+  macos-installer-output:
+    description: |
+      Filename of the DMG file to create. Defaults to the app bundle name with a ".dmg" suffix next to the application bundle.
+  windows-create-installer:
+    description: |
+      Create a Windows installer (NSIS) for the compiled standalone or onefile result. If not given, no installer is created.
+  windows-nsis-path:
+    description: |
+      The installer backend tool to use, or the directory it lives in. By default it is searched in 'PATH', and then a cached download of the official upstream release is used.
+  windows-installer-output:
+    description: |
+      Filename of the installer executable to create. Defaults to the program or dist folder name with a "-setup.exe" suffix in the output directory.
+  windows-installer-install-dir:
+    description: |
+      Default installation directory presented to the end user, backend specific values like "$PROGRAMFILES64\ProductName" are allowed. Defaults to a standard location derived from the product name and install mode.
+  windows-installer-shortcuts:
+    description: |
+      Comma separated list of shortcuts the installer offers, allowed values are "desktop" and "start-menu". Default is no shortcuts.
+  windows-installer-license-file:
+    description: |
+      License text file the installer shall present during installation. Default is to have no license page.
+  windows-installer-no-user-change-install-dir:
+    description: |
+      Do not allow the end user to override the default installation directory. Default is to allow it.
+  windows-installer-mode:
+    description: |
+      Installation scope. "multiuser" lets the end user choose between per-user and all-users (default), "user" forces a per-user install with no UAC prompt, "machine" forces an all-users install requiring admin elevation.
+  linux-create-installer:
+    description: |
+      Create a Linux AppImage installer for the compiled standalone or onefile result. If not given, no installer is created.
+  linux-installer-appimagetool-path:
+    description: |
+      The appimagetool binary to use or the directory it lives in. By default it is searched in 'PATH', and then a cached download of the official upstream release is used.
+  linux-installer-output:
+    description: |
+      Filename of the AppImage to create. Defaults to the dist folder name with an architecture suffix and '.AppImage' extension in the output directory.
+
   ### General OS controls ###
   force-stdout-spec:
     description: |
